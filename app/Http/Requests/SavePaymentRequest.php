@@ -32,7 +32,8 @@ class SavePaymentRequest extends FormRequest
             'usd_amount' => 'required|numeric',
             'exchange_rate_id' => 'nullable|integer',
             'processed' => 'required|boolean',
-            'invoice_id' => 'nullable|integer'
+            'invoice_id' => 'nullable|integer',
+            'file_id' => 'nullable|uuid',
         ];
     }
 }

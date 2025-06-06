@@ -16,7 +16,7 @@ class PaymentsPopulateService
         $this->exchangeRateService = $exchangeRateService;
     }
 
-    public function process(string $csvData): void
+    public function process(string $csvData, string $fileId): void
     {
 
         $this->exchangeRateService->updateAndGetRates();
@@ -51,6 +51,7 @@ class PaymentsPopulateService
                 $validated['usd_amount'] = $usdRate * $validated['amount'];
                 $validated['processed'] = true;
                 $validated['exchange_rate'] = $usdRate;
+                $validated['file_id'] = $fileId;
 
                 $this->paymentService->createPayment($validated);
                 Log::info('Payment saved', ['reference' => $validated['reference_no']]);

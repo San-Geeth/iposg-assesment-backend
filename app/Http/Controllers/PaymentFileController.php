@@ -3,7 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UploadPaymentFileRequest;
-use App\Jobs\ProcessPaymentFile;
+use App\Models\File;
 use App\Services\PaymentsPopulateService;
 use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Storage;
@@ -22,13 +22,21 @@ class PaymentFileController extends Controller
     {
         $file = $request->file('file');
 
+        $uuid = Str::uuid();
+        $filePath = 'payments/' . $uuid . '.csv';
+
         try {
             $csvData = file_get_contents($file->getRealPath());
 
-            Storage::disk('s3')->put('payments/' . Str::uuid() . '.csv',
-                $csvData, 'public');
+            Storage::disk('s3')->put($filePath, $csvData, 'public');
 
-            $this->paymentsPopulateService->process($csvData);
+            // Save to database
+            File::create([
+                'id' => $uuid,
+                'path' => $filePath,
+            ]);
+
+            $this->paymentsPopulateService->process($csvData, $uuid);
 
             return response()->json([
                 'message' => 'File uploaded and processed successfully.',
