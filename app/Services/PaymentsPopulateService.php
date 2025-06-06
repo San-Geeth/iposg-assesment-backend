@@ -20,10 +20,9 @@ class PaymentsPopulateService
     {
 
         $this->exchangeRateService->updateAndGetRates();
-        // Normalize line endings to \n
+
         $csvData = str_replace(["\r\n", "\r"], "\n", $csvData);
 
-        // Trim whitespace and skip empty lines
         $lines = array_filter(array_map('trim', explode("\n", $csvData)));
 
         if (empty($lines)) {
@@ -66,7 +65,6 @@ class PaymentsPopulateService
 
     protected function validateRow(array $data): array
     {
-        // Manual validation (or you can use a FormRequest-like custom validator)
         $required = ['customer_email', 'reference_no', 'date_time', 'currency', 'amount'];
 
         foreach ($required as $field) {
