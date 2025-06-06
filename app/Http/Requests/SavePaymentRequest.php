@@ -22,11 +22,13 @@ class SavePaymentRequest extends FormRequest
     public function rules(): array
     {
         return [
+            'customer_id' => 'required|string',
             'customer_email' => 'required|email',
             'reference_no' => 'required|string',
             'payment_date' => 'required|date',
             'currency' => 'required|string',
             'amount' => 'required|numeric',
+            'exchange_rate' => 'required|numeric',
             'usd_amount' => 'required|numeric',
             'exchange_rate_id' => 'nullable|integer',
             'processed' => 'required|boolean',

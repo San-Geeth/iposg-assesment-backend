@@ -13,6 +13,7 @@ return new class extends Migration
     {
         Schema::create('payments', function (Blueprint $table) {
             $table->id();
+            $table->string('customer_id');
             $table->string('customer_email');
             $table->string('reference_no');
             $table->date('payment_date');
@@ -22,6 +23,13 @@ return new class extends Migration
             $table->boolean('processed')->default(false);
             $table->unsignedBigInteger('invoice_id')->nullable();
             $table->timestamps();
+
+            // Indexes
+            $table->index(['id', 'customer_email']);
+            $table->index(['id', 'customer_email', 'customer_id']);
+            $table->index('reference_no');
+            $table->index('customer_email');
+            $table->index('customer_id');
         });
     }
 
