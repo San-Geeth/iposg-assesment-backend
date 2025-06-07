@@ -92,25 +92,4 @@ class PaymentsPopulateService
         ];
     }
 
-    protected function convertToUSD(string $currency, float $amount): float
-    {
-        if ($currency === 'USD') {
-            return $amount;
-        }
-
-        $response = Http::get("https://api.exchangerate.host/latest?base=$currency&symbols=USD");
-
-        if (!$response->ok()) {
-            throw new \Exception("Failed to fetch exchange rate for $currency");
-        }
-
-        $rate = $response->json()['rates']['USD'] ?? null;
-
-        if (!$rate) {
-            throw new \Exception("Exchange rate for $currency to USD not found");
-        }
-
-        return round($amount * $rate, 2);
-    }
-
 }

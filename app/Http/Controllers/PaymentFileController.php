@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Http\Requests\UploadPaymentFileRequest;
+use App\Jobs\ProcessPaymentFile;
 use App\Models\File;
 use App\Services\PaymentsPopulateService;
 use Illuminate\Support\Facades\Log;
@@ -36,7 +37,7 @@ class PaymentFileController extends Controller
                 'path' => $filePath,
             ]);
 
-            $this->paymentsPopulateService->process($csvData, $uuid);
+            ProcessPaymentFile::dispatch($csvData, $uuid);
 
             return response()->json([
                 'message' => 'File uploaded and processed successfully.',

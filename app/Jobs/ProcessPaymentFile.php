@@ -7,21 +7,21 @@ use Illuminate\Contracts\Queue\ShouldQueue;
 use Illuminate\Foundation\Queue\Queueable;
 use Illuminate\Queue\InteractsWithQueue;
 use Illuminate\Queue\SerializesModels;
-use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
 
 class ProcessPaymentFile implements ShouldQueue
 {
     use Queueable, InteractsWithQueue, SerializesModels;
 
-    protected string $filePath;
+    public string $csvData;
+    public string $fileId;
 
     /**
      * Create a new job instance.
      */
-    public function __construct()
+    public function __construct(string $csvData, string $fileId)
     {
-        //
+        $this->csvData = $csvData;
+        $this->fileId = $fileId;
     }
 
     /**
@@ -29,9 +29,6 @@ class ProcessPaymentFile implements ShouldQueue
      */
     public function handle(PaymentsPopulateService $paymentsPopulateService): void
     {
-        Log::info("ProcessPaymentFile");
-        $fileContents = Storage::disk('s3')->get($this->filePath);
-
-        $paymentsPopulateService->process($fileContents);
+        $paymentsPopulateService->process($this->csvData, $this->fileId);
     }
 }
