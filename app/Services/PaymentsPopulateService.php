@@ -9,11 +9,18 @@ class PaymentsPopulateService
 {
     protected PaymentService $paymentService;
     protected ExchangeRateService $exchangeRateService;
+    protected SlackNotificationService $slackNotificationService;
 
-    public function __construct(PaymentService $paymentService, ExchangeRateService $exchangeRateService)
+    protected int $jobSuccessAlertCount;
+
+    public function __construct(PaymentService $paymentService, ExchangeRateService $exchangeRateService,
+                                SlackNotificationService $slackNotificationService)
     {
         $this->paymentService = $paymentService;
         $this->exchangeRateService = $exchangeRateService;
+        $this->slackNotificationService = $slackNotificationService;
+
+        $this->jobSuccessAlertCount = config('notification.alert_max_count');
     }
 
 
@@ -43,6 +50,7 @@ class PaymentsPopulateService
 
             $header = array_map('trim', array_shift($rows));
 
+            $processedCount = 0;
             foreach ($rows as $row) {
                 if (count($row) < count($header)) {
                     Log::warning('Skipping row: missing columns', ['row' => $row]);
@@ -61,6 +69,7 @@ class PaymentsPopulateService
                     $validated['file_id'] = $fileId;
 
                     $this->paymentService->savePayment($validated);
+                    $processedCount++;
                     Log::info('Payment saved', ['reference' => $validated['reference_no']]);
                 } catch (Exception $exception) {
                     Log::error('Failed to process payment row', [
@@ -68,6 +77,13 @@ class PaymentsPopulateService
                         'row' => $data
                     ]);
                 }
+            }
+
+            Log::info('Processed', ['processed' => $processedCount]);
+            if ($processedCount > $this->jobSuccessAlertCount) {
+                $this->slackNotificationService->sendPaymentSavingsJobSuccessMessage(
+                    "✅ Payment processing completed. File ID: {$fileId}, Records inserted: {$processedCount}"
+                );
             }
         } catch (Exception $exception) {
             Log::error('An error occurred while populating csv file (service): ' . $exception->getMessage() .
