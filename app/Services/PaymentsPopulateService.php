@@ -20,7 +20,7 @@ class PaymentsPopulateService
         $this->exchangeRateService = $exchangeRateService;
         $this->slackNotificationService = $slackNotificationService;
 
-        $this->jobSuccessAlertCount = config('notification.alert_max_count');
+        $this->jobSuccessAlertCount = config('iposg.notification.slack.alert_max_count');
     }
 
 
