@@ -67,7 +67,6 @@ class PaymentService
                     $usdRate = $this->exchangeRateService->getRate($validated['currency']);
 
                     $validated['usd_amount'] = $usdRate * $validated['amount'];
-                    $validated['processed'] = true;
                     $validated['exchange_rate'] = $usdRate;
                     $validated['file_id'] = $fileId;
 
@@ -82,7 +81,6 @@ class PaymentService
                 }
             }
 
-            Log::info('Processed', ['processed' => $processedCount]);
             if ($processedCount > $this->jobSuccessAlertCount) {
                 $this->slackNotificationService->sendPaymentSavingsJobSuccessMessage(
                     "✅ Payment processing completed. File ID: {$fileId}, Records inserted: {$processedCount}"
@@ -236,4 +234,5 @@ class PaymentService
             throw $exception;
         }
     }
+
 }

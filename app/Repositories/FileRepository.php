@@ -17,6 +17,7 @@ class FileRepository
      * @param UploadedFile $file
      * @param string|null $uuid
      * @return File
+     * @throws Exception
      */
     public function saveFileData(string $path, UploadedFile $file, string $uuid = null): File
     {
