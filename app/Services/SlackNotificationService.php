@@ -12,7 +12,7 @@ class SlackNotificationService
 
     public function __construct()
     {
-        $this->webhookUrl = config('notification.outgoing_webhook_url');
+        $this->webhookUrl = config('iposg.notification.slack.outgoing_webhook_url');
     }
 
     /**
