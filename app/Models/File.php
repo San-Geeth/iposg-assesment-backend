@@ -9,7 +9,7 @@ class File extends Model
 {
     public $incrementing = false;
     protected $keyType = 'string';
-    protected $fillable = ['id', 'path'];
+    protected $fillable = ['id', 'path', 'file_type', 'file_size',];
 
     protected static function boot()
     {
