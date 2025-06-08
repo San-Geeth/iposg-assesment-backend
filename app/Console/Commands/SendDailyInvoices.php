@@ -4,6 +4,7 @@ namespace App\Console\Commands;
 
 use App\Mail\InvoiceEmail;
 use App\Repositories\PaymentRepository;
+use App\Services\InvoiceService;
 use Exception;
 use Illuminate\Console\Command;
 use Illuminate\Support\Facades\Log;
@@ -13,11 +14,13 @@ class SendDailyInvoices extends Command
 {
 
     protected PaymentRepository $paymentRepository;
+    protected InvoiceService $invoiceService;
 
-    public function __construct(PaymentRepository $paymentRepository)
+    public function __construct(PaymentRepository $paymentRepository, InvoiceService $invoiceService)
     {
         parent::__construct();
         $this->paymentRepository = $paymentRepository;
+        $this->invoiceService = $invoiceService;
     }
 
 
@@ -44,6 +47,7 @@ class SendDailyInvoices extends Command
     public function handle()
     {
         try {
+            $this->info("cron running");
             $today = now()->toDateString();
 
             $paymentsGrouped = $this->paymentRepository
@@ -55,9 +59,12 @@ class SendDailyInvoices extends Command
                     'customer_email' => $email,
                 ])->render();
 
+                $this->invoiceService->generateInvoiceAfterEmail($customerPayments->all());
+
                 Mail::to($email)->send(new InvoiceEmail($invoiceHtml));
 
                 $this->paymentRepository->markPaymentsAsProcessed($customerPayments);
+
             }
 
             $this->info("Invoices sent to " . $paymentsGrouped->keys()->count() . " customers.");

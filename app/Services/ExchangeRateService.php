@@ -14,8 +14,8 @@ class ExchangeRateService
     public function __construct()
     {
         $baseUrl = config('iposg.currency.exchange_rate_api.base_url');
-        $apiKey = env('iposg.currency.exchange_rate_api.api_key');
-        $baseCurrency = env('iposg.currency.exchange_rate_api.default_currency');
+        $apiKey = config('iposg.currency.exchange_rate_api.api_key');
+        $baseCurrency = config('iposg.currency.exchange_rate_api.default_currency');
 
         $this->apiUrl = "{$baseUrl}/{$apiKey}/latest/{$baseCurrency}";
     }

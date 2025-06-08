@@ -4,22 +4,26 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\UploadPaymentFileRequest;
 use App\Jobs\ProcessPaymentFile;
-use App\Models\File;
+use App\Repositories\FileRepository;
 use App\Services\FileUploadService;
-use App\Services\PaymentsPopulateService;
+use App\Services\PaymentService;
 use Exception;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
 
-class PaymentFileController extends Controller
+class FileController extends Controller
 {
-    protected PaymentsPopulateService $paymentsPopulateService;
+    protected PaymentService $paymentsPopulateService;
     protected FileUploadService $fileUploadService;
 
-    public function __construct(PaymentsPopulateService $paymentsPopulateService, FileUploadService $fileUploadService)
+    protected FileRepository $fileRepository;
+
+    public function __construct(PaymentService $paymentsPopulateService, FileUploadService $fileUploadService,
+                                FileRepository $fileRepository)
     {
         $this->paymentsPopulateService = $paymentsPopulateService;
         $this->fileUploadService = $fileUploadService;
+        $this->fileRepository = $fileRepository;
     }
 
     /**
@@ -36,10 +40,7 @@ class PaymentFileController extends Controller
         try {
             [$uuid, $filePath, $csvData] = $this->fileUploadService->uploadCsvToS3($file->getRealPath());
 
-            File::create([
-                'id' => $uuid,
-                'path' => $filePath,
-            ]);
+            $this->fileRepository->saveFileData($filePath, $file, $uuid);
 
             ProcessPaymentFile::dispatch($csvData, $uuid);
 

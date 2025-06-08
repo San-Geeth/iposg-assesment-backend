@@ -66,4 +66,24 @@ class PaymentRepository
         }
     }
 
+    /**
+     * Desc: Update invoice_id for the given payment records
+     *
+     * @param array $paymentIds
+     * @param int $invoiceId
+     * @throws Exception
+     */
+    public function updateInvoiceIdForPayments(array $paymentIds, int $invoiceId): void
+    {
+        try {
+            Payment::whereIn('id', $paymentIds)->update([
+                'invoice_id' => $invoiceId
+            ]);
+        } catch (Exception $exception) {
+            Log::error('An error occurred while updating invoice_id on payments (repository): ' .
+                $exception->getMessage() . ' (Line: ' . $exception->getLine() . ')');
+            throw $exception;
+        }
+    }
+
 }
