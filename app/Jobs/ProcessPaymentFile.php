@@ -29,6 +29,6 @@ class ProcessPaymentFile implements ShouldQueue
      */
     public function handle(PaymentsPopulateService $paymentsPopulateService): void
     {
-        $paymentsPopulateService->process($this->csvData, $this->fileId);
+        $paymentsPopulateService->populatePayments($this->csvData, $this->fileId);
     }
 }

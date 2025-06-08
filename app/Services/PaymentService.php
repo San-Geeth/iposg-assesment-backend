@@ -15,17 +15,23 @@ class PaymentService
         $this->paymentRepository = $paymentRepository;
     }
 
+
     /**
+     * Desc: Saving payment record to database after
+     * populating function validates data
+     *
+     * @param array $data
+     * @return mixed
      * @throws Exception
      */
-    public function createPayment(array $data)
+    public function savePayment(array $data)
     {
         try {
-            return $this->paymentRepository->create($data);
-        } catch (Exception $e) {
-            Log::error('An error occurred while creating a payment (service): ' . $e->getMessage() .
-                ' (Line: ' . $e->getLine() . ')');
-            throw $e;
+            return $this->paymentRepository->saveNewPayment($data);
+        } catch (Exception $exception) {
+            Log::error('An error occurred while saving payment (controller): ' . $exception->getMessage() .
+                ' (Line: ' . $exception->getLine() . ')');
+            throw $exception;
         }
     }
 }

@@ -5,33 +5,37 @@ namespace App\Http\Controllers;
 use App\Http\Requests\UploadPaymentFileRequest;
 use App\Jobs\ProcessPaymentFile;
 use App\Models\File;
+use App\Services\FileUploadService;
 use App\Services\PaymentsPopulateService;
+use Exception;
+use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Log;
-use Illuminate\Support\Facades\Storage;
-use Illuminate\Support\Str;
 
 class PaymentFileController extends Controller
 {
     protected PaymentsPopulateService $paymentsPopulateService;
+    protected FileUploadService $fileUploadService;
 
-    public function __construct(PaymentsPopulateService $paymentsPopulateService)
+    public function __construct(PaymentsPopulateService $paymentsPopulateService, FileUploadService $fileUploadService)
     {
         $this->paymentsPopulateService = $paymentsPopulateService;
+        $this->fileUploadService = $fileUploadService;
     }
 
-    public function upload(UploadPaymentFileRequest $request)
+    /**
+     * Desc: This method uploads the file to S3, saves metadata to the database,
+     * and dispatches a job to process the file asynchronously.
+     *
+     * @param UploadPaymentFileRequest $request
+     * @return \Illuminate\Http\JsonResponse
+     */
+    public function uploadFile(UploadPaymentFileRequest $request): JsonResponse
     {
         $file = $request->file('file');
 
-        $uuid = Str::uuid();
-        $filePath = 'payments/' . $uuid . '.csv';
-
         try {
-            $csvData = file_get_contents($file->getRealPath());
+            [$uuid, $filePath, $csvData] = $this->fileUploadService->uploadCsvToS3($file->getRealPath());
 
-            Storage::disk('s3')->put($filePath, $csvData, 'public');
-
-            // Save to database
             File::create([
                 'id' => $uuid,
                 'path' => $filePath,
@@ -40,16 +44,17 @@ class PaymentFileController extends Controller
             ProcessPaymentFile::dispatch($csvData, $uuid);
 
             return response()->json([
-                'message' => 'File uploaded and processed successfully.',
-            ]);
-        } catch (\Throwable $e) {
-            Log::error("Failed to process uploaded CSV", [
-                'error' => $e->getMessage(),
-            ]);
+                'success' => true,
+                'message' => 'File uploaded and processing has started.',
+                'reference_id' => $uuid,
+            ], 202);
+        } catch (Exception $exception) {
+            Log::error('An error occurred while uploading and processing file (controller): ' .
+                $exception->getMessage() . ' (Line: ' . $exception->getLine() . ')');
 
             return response()->json([
                 'message' => 'Error processing file.',
-                'error' => $e->getMessage(),
+                'error' => $exception->getMessage(),
             ], 500);
         }
     }

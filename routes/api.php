@@ -10,5 +10,5 @@ Route::get('/user', function (Request $request) {
 })->middleware('auth:sanctum');
 
 Route::post('/payments', [PaymentController::class, 'savePaymentRecord']);
-Route::post('/payments/upload', [PaymentFileController::class, 'upload']);
+Route::post('/payments/upload', [PaymentFileController::class, 'uploadFile']);
 

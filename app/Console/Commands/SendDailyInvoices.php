@@ -3,12 +3,24 @@
 namespace App\Console\Commands;
 
 use App\Mail\InvoiceEmail;
-use App\Models\Payment;
+use App\Repositories\PaymentRepository;
+use Exception;
 use Illuminate\Console\Command;
+use Illuminate\Support\Facades\Log;
 use Illuminate\Support\Facades\Mail;
 
 class SendDailyInvoices extends Command
 {
+
+    protected PaymentRepository $paymentRepository;
+
+    public function __construct(PaymentRepository $paymentRepository)
+    {
+        parent::__construct();
+        $this->paymentRepository = $paymentRepository;
+    }
+
+
     /**
      * The name and signature of the console command.
      *
@@ -24,37 +36,34 @@ class SendDailyInvoices extends Command
     protected $description = 'Command description';
 
     /**
+     * Desc: Command for send invoice emails daily to customers
+     * where payments unprocessed
+     *
      * Execute the console command.
      */
     public function handle()
     {
-        $today = now()->toDateString();
+        try {
+            $today = now()->toDateString();
 
-        // Step 1: Find unprocessed payments for today
-        $payments = Payment::whereDate('created_at', $today)
-            ->where('processed', false)
-            ->get()
-            ->groupBy('customer_email');
+            $paymentsGrouped = $this->paymentRepository
+                ->getUnprocessedPaymentsByDateGroupedByEmail($today);
 
-        foreach ($payments as $email => $customerPayments) {
-            // Step 2: Generate HTML invoice
-            $invoiceHtml = view('emails.invoice', [
-                'payments' => $customerPayments,
-                'customer_email' => $email,
-            ])->render();
+            foreach ($paymentsGrouped as $email => $customerPayments) {
+                $invoiceHtml = view('emails.invoice', [
+                    'payments' => $customerPayments,
+                    'customer_email' => $email,
+                ])->render();
 
-            // Step 3: Send the email
-            Mail::to($email)->send(new InvoiceEmail($invoiceHtml));
+                Mail::to($email)->send(new InvoiceEmail($invoiceHtml));
 
-            // Step 4: Mark as processed
-            foreach ($customerPayments as $payment) {
-                $payment->update([
-                    'processed' => true,
-                    'processed_at' => now(),
-                ]);
+                $this->paymentRepository->markPaymentsAsProcessed($customerPayments);
             }
-        }
 
-        $this->info("Invoices sent to " . $payments->keys()->count() . " customers.");
+            $this->info("Invoices sent to " . $paymentsGrouped->keys()->count() . " customers.");
+        }  catch (Exception $exception) {
+            Log::error('An error occurred while sending daily invoices (command): ' . $exception->getMessage() .
+                ' (Line: ' . $exception->getLine() . ')');
+        }
     }
 }

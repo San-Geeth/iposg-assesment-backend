@@ -31,25 +31,28 @@ class ExchangeRateService
             if ($response->json('result') === 'success') {
                 $data = $response->json();
 
-                // Cache for 24 hours
                 Cache::put('exchange_rates', $data, now()->addHours(24));
                 Log::info('Exchange rate API response:', ['data' => $data]);
                 return $data;
             }
 
-            // Fallback to cached data
             return Cache::get('exchange_rates');
-        } catch (Exception $e) {
-            Log::error('An error occurred getting exchange rates: ' . $e->getMessage() .
-                ' (Line: ' . $e->getLine() . ')');
-            throw $e;
+        } catch (Exception $exception) {
+            Log::error('An error occurred getting exchange rates: ' . $exception->getMessage() .
+                ' (Line: ' . $exception->getLine() . ')');
+            throw $exception;
         }
     }
 
     public function getRate(string $currency): ?float
     {
-        $rates = Cache::get('exchange_rates');
+        try {
+            $rates = Cache::get('exchange_rates');
 
-        return $rates['conversion_rates'][$currency] ?? null;
+            return $rates['conversion_rates'][$currency] ?? null;
+        } catch (Exception $exception) {
+            Log::error("Failed to get exchange rate for {$currency}: " . $exception->getMessage());
+            return null;
+        }
     }
 }

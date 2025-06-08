@@ -4,7 +4,8 @@ namespace App\Http\Controllers;
 
 use App\Http\Requests\SavePaymentRequest;
 use App\Services\PaymentService;
-use Illuminate\Http\Request;
+use Exception;
+use Illuminate\Support\Facades\Log;
 
 class PaymentController extends Controller
 {
@@ -17,11 +18,16 @@ class PaymentController extends Controller
 
     public function savePaymentRecord(SavePaymentRequest  $request)
     {
-        $payment = $this->paymentService->createPayment($request->validated());
+        try {
+            $payment = $this->paymentService->savePayment($request->validated());
 
-        return response()->json([
-            'message' => 'Payment created successfully',
-            'data' => $payment
-        ]);
+            return response()->json([
+                'message' => 'Payment created successfully',
+                'data' => $payment
+            ]);
+        } catch (Exception $exception) {
+            Log::error('An error occurred while saving payment record (controller): ' . $exception->getMessage() .
+                ' (Line: ' . $exception->getLine() . ')');
+        }
     }
 }
