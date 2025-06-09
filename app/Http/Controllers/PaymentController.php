@@ -16,7 +16,14 @@ class PaymentController extends Controller
         $this->paymentService = $paymentService;
     }
 
-    public function savePaymentRecord(SavePaymentRequest  $request)
+    /**
+     * Desc: Saving payment record to the database
+     * if need to save single record without uploading files
+     *
+     * @param SavePaymentRequest $request
+     * @return \Illuminate\Http\JsonResponse|void
+     */
+    public function savePaymentRecord(SavePaymentRequest $request)
     {
         try {
             $payment = $this->paymentService->savePayment($request->validated());

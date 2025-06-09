@@ -9,7 +9,12 @@ use Illuminate\Support\Str;
 
 class FileUploadService
 {
+
     /**
+     * Desc: Function to upload file to the AWS s3 bucket
+     *
+     * @param string $localPath
+     * @return array
      * @throws Exception
      */
     public function uploadCsvToS3(string $localPath): array
