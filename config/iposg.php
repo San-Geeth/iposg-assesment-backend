@@ -22,5 +22,13 @@ return [
                 'max_file_size' => env('CUSTOM_STORAGE_PAYMENTS_MAX_FILE_SIZE'),
             ]
         ]
+    ],
+
+    'payments' => [
+        'csv_process' => [
+            'batch' => [
+                'size' => env('CUSTOM_PAYMENTS_CSV_BATCH_SIZE')
+            ]
+        ]
     ]
 ];
