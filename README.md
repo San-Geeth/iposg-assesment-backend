@@ -89,6 +89,29 @@ CUSTOM_STORAGE_PAYMENTS_MAX_FILE_SIZE=
    php artisan serve
    ```
 
+## Docker Setup Instructions
+
+1. **Build the docker container:**
+   ```bash
+   docker-build -t iposg-app .
+   ```
+
+2. **Run the app:**
+   ```bash
+   docker-run -p 8000:80 iposg-app
+   ```
+
+2. **Execute migrations:**
+   ```bash
+   docker exec -it <container-name> bash 
+   ```
+
+    ```bash
+   php artisan migrate 
+   ```
+   
+### Please note that currently need to create mysql container manually and create a new database.
+
 ---
 
 ## API Overview
