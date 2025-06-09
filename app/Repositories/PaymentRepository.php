@@ -86,4 +86,22 @@ class PaymentRepository
         }
     }
 
+    /**
+     * Desc: Getting paginated list of payments from DB
+     *
+     * @param int $perPage
+     * @return mixed
+     * @throws Exception
+     */
+    public function getPaginatedPayments(int $perPage = 15)
+    {
+        try {
+            return Payment::paginate($perPage);
+        } catch (Exception $exception) {
+            Log::error('An error occurred while getting paginated payment records (repository): ' .
+                $exception->getMessage() . ' (Line: ' . $exception->getLine() . ')');
+            throw $exception;
+        }
+    }
+
 }

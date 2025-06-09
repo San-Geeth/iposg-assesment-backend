@@ -229,7 +229,25 @@ class PaymentService
         try {
             return $this->paymentRepository->saveNewPayment($data);
         } catch (Exception $exception) {
-            Log::error('An error occurred while saving payment (controller): ' . $exception->getMessage() .
+            Log::error('An error occurred while saving payment (service): ' . $exception->getMessage() .
+                ' (Line: ' . $exception->getLine() . ')');
+            throw $exception;
+        }
+    }
+
+    /**
+     * Desc: Getting paginated payments records
+     *
+     * @param int $perPage
+     * @return mixed
+     * @throws Exception
+     */
+    public function getPaginatedPayments(int $perPage = 15)
+    {
+        try {
+            return $this->paymentRepository->getPaginatedPayments($perPage);
+        } catch (Exception $exception) {
+            Log::error('An error occurred while getting paginated payments (service): ' . $exception->getMessage() .
                 ' (Line: ' . $exception->getLine() . ')');
             throw $exception;
         }
