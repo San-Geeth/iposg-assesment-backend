@@ -9,21 +9,21 @@ use Illuminate\Support\Facades\Log;
 class PaymentService
 {
     protected ExchangeRateService $exchangeRateService;
-    protected SlackNotificationService $slackNotificationService;
     protected PaymentRepository  $paymentRepository;
-
+    protected SlackNotificationService $slackNotificationService;
     protected int $jobSuccessAlertCount;
+    protected int $csvChunksBatchSize;
 
-    public function __construct(ExchangeRateService $exchangeRateService,
-                                SlackNotificationService $slackNotificationService, PaymentRepository $paymentRepository)
+    public function __construct(PaymentRepository $paymentRepository, ExchangeRateService $exchangeRateService,
+                                SlackNotificationService $slackNotificationService)
     {
+        $this->paymentRepository = $paymentRepository;
         $this->exchangeRateService = $exchangeRateService;
         $this->slackNotificationService = $slackNotificationService;
-        $this->paymentRepository = $paymentRepository;
 
         $this->jobSuccessAlertCount = config('iposg.notification.slack.alert_max_count');
+        $this->csvChunksBatchSize = config('iposg.payments.csv_process.batch.size');
     }
-
 
     /**
      * Desc: Populating payment records after read
@@ -32,66 +32,216 @@ class PaymentService
      * @param string $csvData
      * @param string $fileId
      * @return void
+     * @throws Exception
      */
-    public function populatePayments(string $csvData, string $fileId): void
+    public function populatePayments(string $csvData, string $fileId): array
     {
+        $summary = [
+            'total_rows' => 0,
+            'processed' => 0,
+            'skipped' => 0,
+            'errors' => [],
+            'start_time' => microtime(true),
+        ];
+
         try {
             $this->exchangeRateService->updateAndGetRates();
 
+            $this->processCsvInChunks($csvData, $fileId, $summary);
+
+            $summary['execution_time'] = round(microtime(true) - $summary['start_time'], 2);
+            $this->logProcessingSummary($summary, $fileId);
+
+            return $summary;
+
+        } catch (Exception $exception) {
+            Log::error('An error occurred while populating csv file (service): ' . $exception->getMessage() .
+                ' (Line: ' . $exception->getLine() . ')');
+            throw $exception;
+        }
+    }
+
+    /**
+     * Desc: Saving payment record to database after
+     * populating function validates data
+     *
+     * @param array $data
+     * @return mixed
+     * @throws Exception
+     */
+    public function savePayment(array $data)
+    {
+        try {
+            return $this->paymentRepository->saveNewPayment($data);
+        } catch (Exception $exception) {
+            Log::error('An error occurred while saving payment (service): ' . $exception->getMessage() .
+                ' (Line: ' . $exception->getLine() . ')');
+            throw $exception;
+        }
+    }
+
+    /**
+     * Desc: Getting paginated payments records
+     *
+     * @param int $perPage
+     * @return mixed
+     * @throws Exception
+     */
+    public function getPaginatedPayments(int $perPage = 15)
+    {
+        try {
+            return $this->paymentRepository->getPaginatedPayments($perPage);
+        } catch (Exception $exception) {
+            Log::error('An error occurred while getting paginated payments (service): ' . $exception->getMessage() .
+                ' (Line: ' . $exception->getLine() . ')');
+            throw $exception;
+        }
+    }
+
+    /**
+     * Desc: process CSV data in chunks to manage memory usage
+     *
+     * @param string $csvData
+     * @param string $fileId
+     * @param array $summary
+     * @throws Exception
+     */
+    public function processCsvInChunks(string $csvData, string $fileId, array &$summary): void
+    {
+        try {
             $csvData = str_replace(["\r\n", "\r"], "\n", $csvData);
+            $record  = array_filter(array_map('trim', explode("\n", $csvData)));
 
-            $record = array_filter(array_map('trim', explode("\n", $csvData)));
-
-            if (empty($record)) {
+            if (empty($record )) {
                 Log::warning('CSV content appears empty or improperly formatted.');
                 return;
             }
 
-            $rows = array_map('str_getcsv', $record);
+            $header = array_map('trim', str_getcsv(array_shift($record )));
+            $summary['total_rows'] = count($record );
 
-            $header = array_map('trim', array_shift($rows));
+            $batch = [];
+            $batchSize = $this->csvChunksBatchSize;
+            $currentBatchNumber = 1;
 
-            $processedCount = 0;
-            foreach ($rows as $row) {
-                if (count($row) < count($header)) {
-                    Log::warning('Skipping row: missing columns', ['row' => $row]);
-                    continue;
-                }
-
-                $data = array_combine($header, $row);
-
-                $data = $this->cleanRow($data);
-
+            foreach ($record  as $line) {
                 try {
+                    $row = str_getcsv($line);
+                    if (count($row) < count($header)) {
+                        Log::warning('Skipping row: missing columns', ['row' => $row]);
+                        continue;
+                    }
+
+                    $data = array_combine($header, $row);
+                    $data = $this->cleanRow($data);
                     $validated = $this->validateRow($data);
-                    $usdRate = $this->exchangeRateService->getRate($validated['currency']);
 
-                    $validated['usd_amount'] = $usdRate * $validated['amount'];
-                    $validated['exchange_rate'] = $usdRate;
-                    $validated['file_id'] = $fileId;
+                    if ($validated !== null) {
+                        $usdRate = $this->exchangeRateService->getRate($validated['currency']);
+                        $validated['usd_amount'] = $usdRate * $validated['amount'];
+                        $validated['exchange_rate'] = $usdRate;
+                        $validated['file_id'] = $fileId;
 
-                    $this->savePayment($validated);
-                    $processedCount++;
-                    Log::info('Payment saved', ['reference' => $validated['reference_no']]);
+                        $batch[] = $validated;
+
+                        if (count($batch) >= $batchSize) {
+                            $this->processBatch($batch, $currentBatchNumber);
+                            $summary['processed'] += count($batch);
+                            $currentBatchNumber++;
+                            $batch = [];
+                        }
+                    }
                 } catch (Exception $exception) {
-                    Log::error('Failed to process payment row', [
-                        'error' => $exception->getMessage(),
-                        'row' => $data
-                    ]);
+                    $summary['skipped']++;
+                    $summary['errors'][] = [
+                        'message' => $exception->getMessage(),
+                        'row' => $row ?? null
+                    ];
                 }
             }
 
-            if ($processedCount > $this->jobSuccessAlertCount) {
-                $this->slackNotificationService->sendPaymentSavingsJobSuccessMessage(
-                    "✅ Payment processing completed. File ID: {$fileId}, Records inserted: {$processedCount}"
-                );
+            if (!empty($batch)) {
+                $this->processBatch($batch, $currentBatchNumber);
+                $summary['processed'] += count($batch);
             }
         } catch (Exception $exception) {
-            Log::error('An error occurred while populating csv file (service): ' . $exception->getMessage() .
+            Log::error('An error occurred while processing csv chunks (service): ' . $exception->getMessage() .
                 ' (Line: ' . $exception->getLine() . ')');
+            throw $exception;
         }
     }
 
+    /**
+     * Desc: process and log a batch of validated payments
+     *
+     * @param array $batch
+     * @param int $batchNumber
+     * @throws Exception
+     */
+    protected function processBatch(array $batch, int $batchNumber): void
+    {
+        try {
+            $batchReferences = array_column($batch, 'reference_no');
+
+            // Save all payments in the batch
+            foreach ($batch as $payment) {
+                $this->savePayment($payment);
+            }
+
+            // Log the entire batch as JSON
+            Log::info("Batch {$batchNumber} processed", [
+                'batch_size' => count($batch),
+                'references' => $batchReferences,
+                'sample_data' => array_slice($batch, 0, 3)
+            ]);
+
+        } catch (Exception $exception) {
+            Log::error("Failed to process batch {$batchNumber}", [
+                'error' => $exception->getMessage(),
+                'batch_size' => count($batch),
+                'batch_number' => $batchNumber
+            ]);
+            throw $exception;
+        }
+    }
+
+    /**
+     * Desc: log summary of processing
+     *
+     * @param array $summary
+     * @param string $fileId
+     * @throws Exception
+     */
+    public function logProcessingSummary(array $summary, string $fileId): void
+    {
+        try {
+            $message = sprintf(
+                "Payment processing completed. File ID: %s, Total: %d, Processed: %d, Skipped: %d, Time: %ss",
+                $fileId,
+                $summary['total_rows'],
+                $summary['processed'],
+                $summary['skipped'],
+                $summary['execution_time']
+            );
+
+            Log::info($message);
+
+            if ($summary['processed'] > $this->jobSuccessAlertCount) {
+                $this->slackNotificationService->sendPaymentSavingsJobSuccessMessage("✅ " . $message);
+            }
+
+            if (!empty($summary['errors'])) {
+                Log::warning('Processing errors summary', [
+                    'total_errors' => count($summary['errors']),
+                    'sample_errors' => array_slice($summary['errors'], 0, 5)
+                ]);
+            }
+        } catch (Exception $exception) {
+            Log::error('An error occurred while logging populating summaries (service): ' . $exception->getMessage() .
+                ' (Line: ' . $exception->getLine() . ')');
+            throw $exception;
+        }
+    }
     /**
      * Desc: Validate data in rows before
      * populate to the database
@@ -215,42 +365,4 @@ class PaymentService
             return [];
         }
     }
-
-    /**
-     * Desc: Saving payment record to database after
-     * populating function validates data
-     *
-     * @param array $data
-     * @return mixed
-     * @throws Exception
-     */
-    public function savePayment(array $data)
-    {
-        try {
-            return $this->paymentRepository->saveNewPayment($data);
-        } catch (Exception $exception) {
-            Log::error('An error occurred while saving payment (service): ' . $exception->getMessage() .
-                ' (Line: ' . $exception->getLine() . ')');
-            throw $exception;
-        }
-    }
-
-    /**
-     * Desc: Getting paginated payments records
-     *
-     * @param int $perPage
-     * @return mixed
-     * @throws Exception
-     */
-    public function getPaginatedPayments(int $perPage = 15)
-    {
-        try {
-            return $this->paymentRepository->getPaginatedPayments($perPage);
-        } catch (Exception $exception) {
-            Log::error('An error occurred while getting paginated payments (service): ' . $exception->getMessage() .
-                ' (Line: ' . $exception->getLine() . ')');
-            throw $exception;
-        }
-    }
-
 }

@@ -7,6 +7,9 @@ RUN apt-get update && apt-get install -y \
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 RUN a2enmod rewrite
 RUN echo "ServerName localhost" >> /etc/apache2/apache2.conf
+RUN echo "memory_limit = 512M" > /usr/local/etc/php/conf.d/memory.ini && \
+    echo "post_max_size = 50M" > /usr/local/etc/php/conf.d/post.ini && \
+    echo "upload_max_filesize = 50M" >> /usr/local/etc/php/conf.d/post.ini
 WORKDIR /var/www/html
 COPY . .
 RUN composer install --optimize-autoloader --no-dev

@@ -22,7 +22,7 @@ class UploadPaymentFileRequest extends FormRequest
     public function rules(): array
     {
         return [
-            'file' => 'required|file|mimes:csv,txt|max:' . config('settings.max_upload_size_kb', 204800),
+            'file' => 'required|file|mimes:csv,txt|max:' . config('iposg.storage.s3.payments.max_file_size'),
         ];
     }
 
