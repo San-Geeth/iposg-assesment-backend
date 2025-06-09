@@ -9,6 +9,13 @@ use Mockery\Exception;
 
 class InvoiceRepository
 {
+    /**
+     * Desc: Saving invoice data to database after send
+     * invoice emails
+     *
+     * @param array $paymentIds
+     * @return Invoice
+     */
     public function createInvoice(array $paymentIds): Invoice
     {
         try {

@@ -20,7 +20,12 @@ class ExchangeRateService
         $this->apiUrl = "{$baseUrl}/{$apiKey}/latest/{$baseCurrency}";
     }
 
+
     /**
+     * Desc: Getting daily exchange rates from the public API
+     * and caching it to later use for calculations
+     *
+     * @return array|null
      * @throws Exception
      */
     public function updateAndGetRates(): ?array
@@ -44,6 +49,13 @@ class ExchangeRateService
         }
     }
 
+    /**
+     * Desc: Returning the USD rate for the
+     * related currency
+     *
+     * @param string $currency
+     * @return float|null
+     */
     public function getRate(string $currency): ?float
     {
         try {

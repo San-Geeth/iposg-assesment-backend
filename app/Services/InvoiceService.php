@@ -20,6 +20,11 @@ class InvoiceService
     }
 
     /**
+     * Desc: Function to generate invoice after sending email
+     * and updating invoice id in payments table
+     *
+     * @param array $payments
+     * @return void
      * @throws Exception
      */
     public function generateInvoiceAfterEmail(array $payments): void

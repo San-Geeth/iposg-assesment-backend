@@ -11,4 +11,5 @@ Route::get('/user', function (Request $request) {
 
 Route::post('/payments', [PaymentController::class, 'savePaymentRecord']);
 Route::post('/payments/upload', [FileController::class, 'uploadFile']);
+Route::get('/payments', [PaymentController::class, 'getPaginatedPaymentRecords']);
 
